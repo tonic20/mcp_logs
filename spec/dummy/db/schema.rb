@@ -26,7 +26,6 @@ ActiveRecord::Schema[8.1].define(version: 1) do
     t.text "error_message"
     t.string "error_type"
     t.string "ip"
-    t.string "jsonrpc_id"
     t.string "protocol_version"
     t.jsonb "response"
     t.string "rpc_method", null: false

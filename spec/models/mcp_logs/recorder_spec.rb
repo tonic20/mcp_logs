@@ -69,6 +69,18 @@ RSpec.describe McpLogs::Recorder do
     expect(call.error_message).to eq("ArgumentError: bad news")
   end
 
+  it "caps an oversized error message and flags the call as truncated" do
+    data = { method: "tools/call" }
+
+    expect {
+      record(data) { raise "x" * 5_000 }
+    }.to raise_error(RuntimeError)
+
+    call = McpLogs::Call.sole
+    expect(call.error_message.bytesize).to eq(McpLogs::Recorder::ERROR_MESSAGE_BYTES)
+    expect(call.truncated).to be(true)
+  end
+
   it "records an error the server reported without raising" do
     data = { method: "tools/call" }
     record(data) do
@@ -134,8 +146,31 @@ RSpec.describe McpLogs::Recorder do
 
   it "never lets a failure while finishing break the call" do
     allow_any_instance_of(McpLogs::Call).to receive(:update!).and_raise(ActiveRecord::StatementInvalid, "gone")
-    allow(Rails.error).to receive(:report)
+    expect(Rails.error).to receive(:report).at_least(:once)
 
     expect(record({ method: "tools/call" }) { { ok: true } }).to eq(ok: true)
+  end
+
+  # The two specs above stub create!/update! directly, so no statement ever
+  # reaches PostgreSQL and no transaction is ever poisoned — they pin control
+  # flow only. These provoke a real database error (division by zero, which
+  # PostgreSQL rejects at the statement level) to prove the actual failure
+  # mode the "never breaks the call" constraint is about: a failed statement
+  # inside an open transaction leaves the connection aborted, so every query
+  # after it fails too, unless the write runs in its own savepoint.
+  it "keeps the enclosing transaction usable after a real database error while starting" do
+    allow(McpLogs::Call).to receive(:create!) { McpLogs::Call.connection.execute("SELECT 1/0") }
+    expect(Rails.error).to receive(:report).at_least(:once)
+
+    expect(record({ method: "tools/call" }) { { ok: true } }).to eq(ok: true)
+    expect { McpLogs::Call.count }.not_to raise_error
+  end
+
+  it "keeps the enclosing transaction usable after a real database error while finishing" do
+    allow_any_instance_of(McpLogs::Call).to receive(:update!) { McpLogs::Call.connection.execute("SELECT 1/0") }
+    expect(Rails.error).to receive(:report).at_least(:once)
+
+    expect(record({ method: "tools/call" }) { { ok: true } }).to eq(ok: true)
+    expect { McpLogs::Call.count }.not_to raise_error
   end
 end

@@ -2,7 +2,6 @@ class CreateMcpLogsCalls < ActiveRecord::Migration[8.0]
   def change
     create_table :mcp_logs_calls do |t|
       t.string  :server_name
-      t.string  :jsonrpc_id
       # Named rpc_method, not method: an ActiveRecord attribute called `method`
       # shadows Object#method on every instance of this class.
       t.string  :rpc_method, null: false
