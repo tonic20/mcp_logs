@@ -246,5 +246,10 @@ mcp_logs_purge:
 - Ruby >= 3.3
 - Rails ~> 8.0
 - PostgreSQL (the `arguments`/`response` columns are `jsonb`)
+- An asset pipeline — Propshaft or `sprockets-rails`. The pages are styled by
+  the engine's own `mcp_logs.css`, and the engine ships
+  `app/assets/config/mcp_logs_manifest.js` declaring it, which is what Sprockets
+  needs to precompile an engine asset. Nothing to configure either way; without
+  a pipeline at all, the pages render unstyled.
 - The `mcp` gem, supplied by the host — `mcp_logs` only depends on `rails`
   and `pagy`
