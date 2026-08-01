@@ -5,7 +5,14 @@ class CreateMcpLogsCalls < ActiveRecord::Migration[8.0]
       # Named rpc_method, not method: an ActiveRecord attribute called `method`
       # shadows Object#method on every instance of this class.
       t.string  :rpc_method, null: false
-      t.string  :tool_name
+      # limit: 255 on every string a client can influence. tool_name in
+      # particular is not validated input — mcp 1.0.0 passes params.name to the
+      # around_request hook before looking the tool up — and the calls page
+      # renders one <option> per distinct value, so an unbounded column lets one
+      # client fill the table and take the page down. McpLogs::Recorder truncates
+      # to the same width at capture time; this is the backstop, and it is why
+      # the number is a character count rather than a byte count.
+      t.string  :tool_name, limit: 255
       t.jsonb   :arguments
       t.jsonb   :response
       t.string  :status, null: false, default: "running"
@@ -14,13 +21,13 @@ class CreateMcpLogsCalls < ActiveRecord::Migration[8.0]
       t.string  :error_type
       t.text    :error_message
       t.float   :duration_ms
-      t.string  :client_name
-      t.string  :client_version
-      t.string  :protocol_version
-      t.string  :session_id
-      t.string  :actor
-      t.string  :ip
-      t.string  :user_agent
+      t.string  :client_name, limit: 255
+      t.string  :client_version, limit: 255
+      t.string  :protocol_version, limit: 255
+      t.string  :session_id, limit: 255
+      t.string  :actor, limit: 255
+      t.string  :ip, limit: 255
+      t.string  :user_agent, limit: 255
       # One flag per capped payload, not a single OR'd column: each of these is
       # set independently, so the detail page can say which payload was capped
       # instead of pointing at whichever one happened to render nearby.

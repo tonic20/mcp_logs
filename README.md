@@ -173,6 +173,13 @@ Payloads are always run through Rails' `filter_parameters`, then
 `config.payload_filter`, then capped at `config.max_payload_bytes` before
 being stored.
 
+Every string column above is `varchar(255)` and truncated to match at capture
+time. `tool_name` in particular is not validated input — `mcp` 1.0.0 reads it
+from `params.name` and hands it to the hook *before* looking the tool up, so an
+unknown tool records whatever the client sent — and `session_id`,
+`protocol_version` and `user_agent` are raw request headers. The calls page's
+filter dropdowns are bounded for the same reason.
+
 ## Pages
 
 Mounted at `/mcp_logs` (or wherever you routed it):

@@ -55,6 +55,32 @@ RSpec.describe "McpLogs::Calls", type: :request do
     expect(options).to include("search_apps", "edit_app")
   end
 
+  # tool_name is raw client input (Recorder::STRING_LIMIT says why), so the
+  # number of distinct values is bounded by the number of requests served, not
+  # by the number of tools that exist. Unbounded, the page an operator opens to
+  # find out what a misbehaving client did is the page that client can make
+  # unrenderable.
+  it "bounds the filter dropdowns" do
+    stub_const("McpLogs::Call::FILTER_OPTIONS_LIMIT", 3)
+    5.times { |i| call!(tool_name: "tool_#{i}") }
+
+    get "/mcp_logs"
+
+    options = Nokogiri::HTML(response.body).css("select#tool option").map(&:text)
+    expect(options.grep(/\Atool_/).length).to eq(3)
+  end
+
+  it "keeps the tool it is filtered by in the dropdown even past that bound" do
+    stub_const("McpLogs::Call::FILTER_OPTIONS_LIMIT", 1)
+    call!(tool_name: "aaa")
+    call!(tool_name: "zzz")
+
+    get "/mcp_logs", params: { tool: "zzz" }
+
+    options = Nokogiri::HTML(response.body).css("select#tool option").map(&:text)
+    expect(options).to include("aaa", "zzz")
+  end
+
   it "paginates using the configured page size" do
     McpLogs.page_size = 1
     call!(tool_name: "search_apps")

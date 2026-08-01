@@ -5,6 +5,13 @@ module McpLogs
   class Call < ApplicationRecord
     STATUSES = %w[running ok error].freeze
 
+    # How many distinct values a filter dropdown will offer. Bounded because
+    # tool_name is raw client input (see Recorder::STRING_LIMIT): the number of
+    # distinct values is capped by requests served, not by tools that exist, so
+    # an unbounded SELECT DISTINCT would let one looping client put an <option>
+    # per request on every render of the page opened to investigate it.
+    FILTER_OPTIONS_LIMIT = 200
+
     validates :rpc_method, presence: true
     validates :started_at, presence: true
     validates :status, inclusion: { in: STATUSES }
@@ -17,6 +24,10 @@ module McpLogs
     scope :for_tool,    ->(value) { where(tool_name: value) if value.present? }
     scope :with_status, ->(value) { where(status: value) if value.present? }
     scope :for_session, ->(value) { where(session_id: value) if value.present? }
+
+    def self.filter_values(column)
+      where.not(column => nil).distinct.order(column).limit(FILTER_OPTIONS_LIMIT).pluck(column)
+    end
 
     def self.tool_counts
       where.not(tool_name: nil).group(:tool_name).count

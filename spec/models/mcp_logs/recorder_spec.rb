@@ -83,6 +83,47 @@ RSpec.describe McpLogs::Recorder do
     expect(call.response_truncated).to be(false)
   end
 
+  # tool_name is not validated input. mcp 1.0.0 reads it straight from
+  # params.name and hands it to this hook *before* looking the tool up, and
+  # session_id / protocol_version / user_agent are raw request headers. Without
+  # a cap, one looping client fills the table with megabyte strings and turns
+  # the calls page's tool dropdown into unrenderable HTML.
+  it "caps the strings a client controls" do
+    request = ActionDispatch::TestRequest.create(
+      "HTTP_MCP_SESSION_ID" => "s" * 5_000,
+      "HTTP_MCP_PROTOCOL_VERSION" => "p" * 5_000,
+      "HTTP_USER_AGENT" => "u" * 5_000
+    )
+    data = { method: "tools/call" }
+
+    McpLogs::Context.with(request) do
+      record(data) do
+        data[:tool_name] = "t" * 5_000
+        data[:client] = { name: "c" * 5_000, version: "v" * 5_000 }
+        {}
+      end
+    end
+
+    limit = McpLogs::Recorder::STRING_LIMIT
+    call = McpLogs::Call.sole
+    expect(call.tool_name.length).to eq(limit)
+    expect(call.session_id.length).to eq(limit)
+    expect(call.protocol_version.length).to eq(limit)
+    expect(call.user_agent.length).to eq(limit)
+    expect(call.client_name.length).to eq(limit)
+    expect(call.client_version.length).to eq(limit)
+  end
+
+  it "leaves a string that already fits exactly as it was" do
+    data = { method: "tools/call" }
+    record(data) do
+      data[:tool_name] = "search_apps"
+      {}
+    end
+
+    expect(McpLogs::Call.sole.tool_name).to eq("search_apps")
+  end
+
   it "records an error the server reported without raising" do
     data = { method: "tools/call" }
     record(data) do

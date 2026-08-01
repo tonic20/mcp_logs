@@ -25,6 +25,24 @@ module McpLogs
     # free-text exception messages is out of scope here.
     ERROR_MESSAGE_BYTES = 2_000
 
+    # Cap for every string column a client can influence: tool_name, session_id,
+    # client_name, client_version, protocol_version, user_agent.
+    #
+    # These are not validated input. mcp 1.0.0 reads tool_name straight from
+    # params.name and hands it to this hook *before* looking the tool up, so an
+    # unknown tool records whatever the client sent; the rest are raw request
+    # headers. Uncapped, one looping client writes megabyte rows for the whole
+    # retention window and puts one <option> per distinct value on the calls
+    # page — taking down the page an operator would open to find out why.
+    #
+    # 255 is the migration's `limit:`, and PostgreSQL's varchar(n) counts
+    # characters, so this counts characters too and a value cut here always
+    # fits. It is far above every legitimate value (a tool name is an
+    # identifier, a session id a UUID, a protocol version a date), which is why
+    # the cut is silent: unlike a capped payload there is nothing an operator
+    # would want back, so it gets no *_truncated flag.
+    STRING_LIMIT = 255
+
     def self.around_request(server_name: nil)
       recorder = new(server_name: server_name)
       ->(data, &handler) { recorder.call(data, &handler) }
@@ -67,7 +85,7 @@ module McpLogs
             rpc_method: data[:method].to_s,
             status: "running",
             started_at: Time.current
-          }.merge(Context.current.slice(:session_id, :protocol_version, :actor, :ip, :user_agent))
+          }.merge(capped_context)
         )
       end
     end
@@ -85,7 +103,7 @@ module McpLogs
         error_message, error_message_truncated = capped_error_message(exception)
 
         record.update!(
-          tool_name: data[:tool_name],
+          tool_name: capped(data[:tool_name]),
           arguments: arguments,
           arguments_truncated: arguments_truncated,
           response: body,
@@ -96,8 +114,8 @@ module McpLogs
           error_type: data[:error]&.to_s || exception&.class&.name,
           error_message: error_message,
           error_message_truncated: error_message_truncated,
-          client_name: client(data)[:name],
-          client_version: client(data)[:version],
+          client_name: capped(client(data)[:name]),
+          client_version: capped(client(data)[:version]),
           duration_ms: elapsed_ms,
           completed_at: Time.current
         )
@@ -123,6 +141,18 @@ module McpLogs
     def client(data)
       value = data[:client]
       value.is_a?(Hash) ? value.symbolize_keys : {}
+    end
+
+    # actor is the host's own label rather than anything the client sent, but it
+    # shares a column width with the rest, so it is capped alongside them.
+    def capped_context
+      Context.current
+        .slice(:session_id, :protocol_version, :actor, :ip, :user_agent)
+        .transform_values { |value| capped(value) }
+    end
+
+    def capped(value)
+      value && value.to_s.truncate(STRING_LIMIT, omission: "")
     end
 
     def capped_error_message(exception)

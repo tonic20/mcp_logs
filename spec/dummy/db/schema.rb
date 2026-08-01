@@ -15,31 +15,31 @@ ActiveRecord::Schema[8.1].define(version: 1) do
   enable_extension "pg_catalog.plpgsql"
 
   create_table "mcp_logs_calls", force: :cascade do |t|
-    t.string "actor"
+    t.string "actor", limit: 255
     t.jsonb "arguments"
     t.boolean "arguments_truncated", default: false, null: false
     t.boolean "cancelled", default: false, null: false
-    t.string "client_name"
-    t.string "client_version"
+    t.string "client_name", limit: 255
+    t.string "client_version", limit: 255
     t.datetime "completed_at"
     t.datetime "created_at", null: false
     t.float "duration_ms"
     t.text "error_message"
     t.boolean "error_message_truncated", default: false, null: false
     t.string "error_type"
-    t.string "ip"
-    t.string "protocol_version"
+    t.string "ip", limit: 255
+    t.string "protocol_version", limit: 255
     t.jsonb "response"
     t.boolean "response_truncated", default: false, null: false
     t.string "rpc_method", null: false
     t.string "server_name"
-    t.string "session_id"
+    t.string "session_id", limit: 255
     t.datetime "started_at", null: false
     t.string "status", default: "running", null: false
     t.boolean "tool_error", default: false, null: false
-    t.string "tool_name"
+    t.string "tool_name", limit: 255
     t.datetime "updated_at", null: false
-    t.string "user_agent"
+    t.string "user_agent", limit: 255
     t.index ["rpc_method"], name: "index_mcp_logs_calls_on_rpc_method"
     t.index ["session_id"], name: "index_mcp_logs_calls_on_session_id"
     t.index ["started_at"], name: "index_mcp_logs_calls_on_started_at"
