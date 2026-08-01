@@ -5,6 +5,10 @@ RSpec.describe "McpLogs::Calls", type: :request do
     McpLogs::Call.create!({ rpc_method: "tools/call", started_at: 1.minute.ago, status: "ok" }.merge(attrs))
   end
 
+  def rows
+    Nokogiri::HTML(response.body).css("tbody").text
+  end
+
   it "lists calls newest first" do
     call!(tool_name: "search_apps", started_at: 2.hours.ago)
     call!(tool_name: "edit_app", started_at: 1.minute.ago)
@@ -13,10 +17,6 @@ RSpec.describe "McpLogs::Calls", type: :request do
 
     expect(response).to have_http_status(:ok)
     expect(response.body.index("edit_app")).to be < response.body.index("search_apps")
-  end
-
-  def rows
-    Nokogiri::HTML(response.body).css("tbody").text
   end
 
   it "filters by tool, method, status and session" do
