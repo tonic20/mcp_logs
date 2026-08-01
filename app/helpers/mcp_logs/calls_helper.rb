@@ -23,5 +23,14 @@ module McpLogs
 
       tag.pre(JSON.pretty_generate(value), class: "mcpl-json")
     end
+
+    # A capped payload is self-identifying: McpLogs::Payload.cap replaces the
+    # value with a marker hash carrying these three keys. The call-level
+    # `truncated` column ORs arguments, response and error_message together,
+    # so it can't say which one was actually capped — this checks the payload
+    # itself instead, so each panel speaks only for what it holds.
+    def mcpl_capped?(value)
+      value.is_a?(Hash) && value["truncated"] == true && value.key?("bytes") && value.key?("preview")
+    end
   end
 end

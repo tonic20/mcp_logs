@@ -9,6 +9,13 @@ RSpec.describe "McpLogs::Calls", type: :request do
     Nokogiri::HTML(response.body).css("tbody").text
   end
 
+  # Text of the panel titled `heading` on the call detail page, so a spec can
+  # assert a notice appears next to the payload it actually describes instead
+  # of just being somewhere on the page.
+  def panel(heading)
+    Nokogiri::HTML(response.body).css(".mcpl-panel").find { |node| node.at_css("h2")&.text&.include?(heading) }&.text.to_s
+  end
+
   it "lists calls newest first" do
     call!(tool_name: "search_apps", started_at: 2.hours.ago)
     call!(tool_name: "edit_app", started_at: 1.minute.ago)
@@ -117,12 +124,30 @@ RSpec.describe "McpLogs::Calls", type: :request do
       expect(response.body).to include("kaboom")
     end
 
-    it "says so when a payload was capped" do
-      call = call!(truncated: true, arguments: { "truncated" => true, "bytes" => 90_000, "preview" => "{...}" })
+    it "flags the arguments panel, not the response panel, when only the arguments were capped" do
+      call = call!(
+        truncated: true,
+        arguments: { "truncated" => true, "bytes" => 90_000, "preview" => "{...}" },
+        response: { "content" => "ok" }
+      )
 
       get "/mcp_logs/calls/#{call.id}"
 
-      expect(response.body).to include("capped")
+      expect(panel("Arguments")).to include("capped")
+      expect(panel("Response")).not_to include("capped")
+    end
+
+    it "flags the response panel, not the arguments panel, when only the response was capped" do
+      call = call!(
+        truncated: true,
+        arguments: { "q" => "pagefly" },
+        response: { "truncated" => true, "bytes" => 90_000, "preview" => "{...}" }
+      )
+
+      get "/mcp_logs/calls/#{call.id}"
+
+      expect(panel("Response")).to include("capped")
+      expect(panel("Arguments")).not_to include("capped")
     end
   end
 end

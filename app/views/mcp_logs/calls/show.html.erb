@@ -82,14 +82,19 @@
 
 <div class="mcpl-panel">
   <h2>Arguments</h2>
-  <div class="mcpl-panel-body"><%= mcpl_json(@call.arguments) %></div>
+  <div class="mcpl-panel-body">
+    <% if mcpl_capped?(@call.arguments) %>
+      <p class="mcpl-muted">This payload was capped at <%= number_with_delimiter(McpLogs.max_payload_bytes) %> bytes — what follows is the capped record, not the whole exchange.</p>
+    <% end %>
+    <%= mcpl_json(@call.arguments) %>
+  </div>
 </div>
 
 <div class="mcpl-panel">
   <h2>Response</h2>
   <div class="mcpl-panel-body">
-    <% if @call.truncated %>
-      <p class="mcpl-muted">A payload on this call was capped at <%= number_with_delimiter(McpLogs.max_payload_bytes) %> bytes — what follows is the capped record, not the whole exchange.</p>
+    <% if mcpl_capped?(@call.response) %>
+      <p class="mcpl-muted">This payload was capped at <%= number_with_delimiter(McpLogs.max_payload_bytes) %> bytes — what follows is the capped record, not the whole exchange.</p>
     <% end %>
     <%= mcpl_json(@call.response) %>
   </div>
