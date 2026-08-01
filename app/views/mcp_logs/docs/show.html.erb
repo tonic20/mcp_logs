@@ -1,0 +1,75 @@
+<% content_for :title, "Docs — MCP Logs" %>
+
+<% if @server.nil? %>
+  <div class="mcpl-panel">
+    <h2>Docs</h2>
+    <div class="mcpl-panel-body">
+      <p>No MCP server is configured. Set <code class="mcpl-mono">config.server</code> in your
+        <code class="mcpl-mono">mcp_logs</code> initializer to a lambda returning your
+        <code class="mcpl-mono">MCP::Server</code>, and this page will document its tools.</p>
+    </div>
+  </div>
+<% else %>
+  <div class="mcpl-panel">
+    <h2><%= @server.name %></h2>
+    <div class="mcpl-panel-body">
+      <p class="mcpl-muted">
+        The contract this server serves, read live from it —
+        <%= pluralize(@server.tools.size, "tool") %>, version
+        <span class="mcpl-mono"><%= @server.version %></span>.
+        Clients fetch it once, at connect time, and cache it; after a deploy that changes it,
+        reconnect the client.
+      </p>
+      <% if @server.instructions.present? %>
+        <p style="white-space: pre-line"><%= @server.instructions %></p>
+      <% end %>
+    </div>
+  </div>
+
+  <% @sections.each do |section| %>
+    <div class="mcpl-panel">
+      <h2><%= section.title %></h2>
+      <div class="mcpl-panel-body">
+        <% section.tools.each do |tool| %>
+          <div class="mcpl-tool">
+            <h3><%= tool.name %></h3>
+            <p class="mcpl-muted">
+              <% count = @counts[tool.name].to_i %>
+              <% if count.zero? %>
+                Never called.
+              <% else %>
+                <%= link_to pluralize(count, "call"), mcp_logs.calls_path(tool: tool.name) %>
+              <% end %>
+            </p>
+            <p><%= tool.description %></p>
+
+            <% if tool.params.empty? %>
+              <p class="mcpl-muted">No parameters.</p>
+            <% else %>
+              <table class="mcpl-table">
+                <thead>
+                  <tr>
+                    <th>Param</th>
+                    <th>Type</th>
+                    <th>Required</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% tool.params.each do |param| %>
+                    <tr>
+                      <td class="mcpl-mono"><%= param.name %></td>
+                      <td class="mcpl-muted"><%= param.type %></td>
+                      <td class="mcpl-muted"><%= param.required ? "yes" : "—" %></td>
+                      <td><%= param.description %></td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+<% end %>
