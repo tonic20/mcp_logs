@@ -29,6 +29,28 @@ The generator writes `config/initializers/mcp_logs.rb`, mounts the engine at
 `/mcp_logs` in `config/routes.rb`, and copies the `mcp_logs_calls` migration
 into your app.
 
+### Then gate the pages — this step is not optional
+
+The generated initializer contains one line you must change:
+
+```ruby
+config.base_controller_class = "CHANGE_ME"
+```
+
+`mcp_logs` ships **no authentication of its own**. Its controllers descend from
+a controller of yours and inherit whatever that controller enforces. The three
+pages render every argument and every response your MCP server has recorded, so
+until you point this at a controller that requires a signed-in operator, those
+pages are as reachable as the rest of your app:
+
+```ruby
+config.base_controller_class = "Admin::BaseController"
+```
+
+There is no default, and `CHANGE_ME` raises on the first request to `/mcp_logs`,
+so an app cannot reach production having skipped this by accident. Set it to
+`"ActionController::Base"` only if you genuinely intend the log to be public.
+
 `mcp_logs` does not depend on the `mcp` gem — the host supplies it. Add
 `gem "mcp"` to your own Gemfile if you haven't already.
 
@@ -73,14 +95,15 @@ attach an identity of your own that survives every request.
 
 ```ruby
 McpLogs.setup do |config|
+  # REQUIRED — the pages have no authentication except the controller you name
+  # here. See "Then gate the pages" above.
+  config.base_controller_class = "CHANGE_ME"
+
   # Master switch. When false, nothing is recorded and calls run untouched.
   # config.enabled = true
 
   # A lambda returning your MCP::Server. Read by the docs page only.
   # config.server = -> { Mcp::Registry.server }
-
-  # Inherit your app's authentication by descending from one of its controllers.
-  # config.base_controller_class = "Admin::BaseController"
 
   # Group the docs page by tool name. Anything unlisted renders under "Ungrouped".
   # config.tool_sections = { "Read" => %w[search_apps get_app], "Write" => %w[edit_app] }
@@ -102,9 +125,11 @@ end
   the handler straight through and nothing is written.
 - **`server`** — a lambda returning your `MCP::Server`. Only the docs page
   calls it; capture never builds or touches a server.
-- **`base_controller_class`** — a String, constantized on first autoload of
-  the engine's `ApplicationController` (i.e. after your app's initializers
-  have run). Point it at a controller of yours to inherit its authentication.
+- **`base_controller_class`** — **required.** A String, constantized on first
+  autoload of the engine's `ApplicationController` (i.e. after your app's
+  initializers have run). The engine's controllers descend from it and inherit
+  its authentication; there is no default, and leaving it unset or unresolvable
+  raises `McpLogs::ConfigurationError` rather than serving the log ungated.
 - **`tool_sections`** — `{ "Section title" => ["tool_name", ...] }`. Tool
   names, not classes, so the gem never references a host constant. Anything
   not listed renders under "Ungrouped" on the docs page.

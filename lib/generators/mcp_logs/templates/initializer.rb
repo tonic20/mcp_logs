@@ -1,12 +1,20 @@
 McpLogs.setup do |config|
+  # REQUIRED — replace CHANGE_ME before you deploy.
+  #
+  # These pages render every argument and every response your MCP server has
+  # logged. This gem ships no authentication of its own: its controllers descend
+  # from one of yours and inherit whatever that controller enforces. Name a
+  # controller that requires a signed-in operator, e.g. "Admin::BaseController".
+  #
+  # Left as-is, the first request to /mcp_logs raises. There is no default,
+  # because every default here is either broken or a security hole.
+  config.base_controller_class = "CHANGE_ME"
+
   # Master switch. When false, nothing is recorded and calls run untouched.
   # config.enabled = true
 
   # A lambda returning your MCP::Server. Read by the docs page only.
   # config.server = -> { Mcp::Registry.server }
-
-  # Inherit your app's authentication by descending from one of its controllers.
-  # config.base_controller_class = "Admin::BaseController"
 
   # Group the docs page by tool name. Anything unlisted renders under "Ungrouped".
   # config.tool_sections = { "Read" => %w[search_apps get_app], "Write" => %w[edit_app] }
