@@ -5,6 +5,15 @@ module McpLogs
   class Call < ApplicationRecord
     STATUSES = %w[running ok error].freeze
 
+    # error_type for a row whose finish never landed. Its own value rather than
+    # an exception class name, because no exception was raised here — the
+    # process that would have raised one is gone.
+    ABANDONED = "abandoned".freeze
+
+    ABANDONED_MESSAGE = "No completion was ever recorded for this call. Whatever was " \
+                        "serving it stopped first — a deploy, a crash, or a failed log " \
+                        "write — so its result and duration are unknown.".freeze
+
     # How many distinct values a filter dropdown will offer. Bounded because
     # tool_name is raw client input (see Recorder::STRING_LIMIT): the number of
     # distinct values is capped by requests served, not by tools that exist, so
@@ -35,6 +44,23 @@ module McpLogs
 
     def self.purge!(retention_days = McpLogs.retention_days)
       where(started_at: ...retention_days.to_i.days.ago).delete_all
+    end
+
+    # A row is inserted "running" and updated when the request finishes. If that
+    # update never lands — the container restarted mid-call, or the write itself
+    # failed — nothing retries it, so the row would claim to be running for the
+    # entire retention window: a permanent false positive on the page an
+    # operator reads to answer "what is the agent doing right now", and an
+    # inflated count in tool_counts.
+    #
+    # completed_at and duration_ms stay nil on purpose. The sweep knows the call
+    # did not finish; it does not know when it stopped, and stamping "now" would
+    # invent a fact. Returns how many rows it settled.
+    def self.sweep_abandoned!(hours = McpLogs.abandoned_after_hours)
+      where(status: "running")
+        .where(started_at: ...hours.to_i.hours.ago)
+        .update_all(status: "error", error_type: ABANDONED, error_message: ABANDONED_MESSAGE,
+                    updated_at: Time.current)
     end
 
     def running? = status == "running"

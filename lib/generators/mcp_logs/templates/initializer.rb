@@ -28,5 +28,9 @@ McpLogs.setup do |config|
   # Used by McpLogs::PurgeJob and `rake mcp_logs:purge`. Schedule one of them.
   # config.retention_days = 30
 
+  # The same job settles rows stranded in "running" — a call whose process died
+  # before its completion was written. Set this above your slowest tool call.
+  # config.abandoned_after_hours = 24
+
   # config.page_size = 50
 end

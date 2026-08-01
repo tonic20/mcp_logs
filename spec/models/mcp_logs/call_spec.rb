@@ -51,6 +51,60 @@ RSpec.describe McpLogs::Call do
     expect(described_class.all).to eq([survivor])
   end
 
+  # A row is inserted "running" and updated at finish. When the finish never
+  # lands — a deploy restarting the container mid-call, or a failed log write —
+  # nothing retries, so without this sweep the row claims to be running for the
+  # whole retention window and tool_counts keeps counting it.
+  it "sweeps a call stranded in running into an error that says what happened" do
+    stranded = call!(started_at: 3.days.ago)
+
+    expect(described_class.sweep_abandoned!(24)).to eq(1)
+
+    stranded.reload
+    expect(stranded.status).to eq("error")
+    expect(stranded.error_type).to eq(described_class::ABANDONED)
+    expect(stranded.error_message).to be_present
+    # Not backfilled: nobody knows when or whether the call ended, and a
+    # completed_at of "when the sweep ran" would be a made-up fact.
+    expect(stranded.completed_at).to be_nil
+    expect(stranded.duration_ms).to be_nil
+  end
+
+  it "leaves a call that is still inside the window running" do
+    fresh = call!(started_at: 23.hours.ago)
+
+    expect(described_class.sweep_abandoned!(24)).to eq(0)
+    expect(fresh.reload).to be_running
+  end
+
+  # Frozen, because "exactly on the bound" is only a distinct case if the clock
+  # the spec computes started_at from is the clock the sweep compares against.
+  it "sweeps only what is past the bound, not what is exactly on it" do
+    freeze_time do
+      on_the_bound = call!(started_at: 24.hours.ago)
+      past_it      = call!(started_at: 24.hours.ago - 1.second)
+
+      described_class.sweep_abandoned!(24)
+
+      expect(on_the_bound.reload).to be_running
+      expect(past_it.reload).not_to be_running
+    end
+  end
+
+  it "leaves finished calls alone however old they are" do
+    done = call!(started_at: 30.days.ago, status: "ok", completed_at: 30.days.ago)
+
+    expect(described_class.sweep_abandoned!(24)).to eq(0)
+    expect(done.reload.status).to eq("ok")
+  end
+
+  it "defaults the sweep to the configured bound" do
+    McpLogs.abandoned_after_hours = 1
+    call!(started_at: 2.hours.ago)
+
+    expect(described_class.sweep_abandoned!).to eq(1)
+  end
+
   it "defaults purge to the configured retention window" do
     McpLogs.retention_days = 1
     call!(started_at: 2.days.ago)

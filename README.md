@@ -117,6 +117,9 @@ McpLogs.setup do |config|
   # Used by McpLogs::PurgeJob and `rake mcp_logs:purge`. Schedule one of them.
   # config.retention_days = 30
 
+  # The same job settles rows stranded in "running". Set above your slowest tool.
+  # config.abandoned_after_hours = 24
+
   # config.page_size = 50
 end
 ```
@@ -144,6 +147,10 @@ end
 - **`retention_days`** — how far back `McpLogs::Call.purge!`,
   `McpLogs::PurgeJob` and `rake mcp_logs:purge` reach when called with no
   explicit argument. Default 30.
+- **`abandoned_after_hours`** — how long a call may sit in `running` before
+  `McpLogs::Call.sweep_abandoned!` settles it. Default 24. See "Abandoned
+  calls" below; set it above your slowest tool call, so a genuinely long call
+  is never mistaken for a dead one.
 - **`page_size`** — rows per page on the calls index.
 
 ## What gets recorded
@@ -192,10 +199,31 @@ Mounted at `/mcp_logs` (or wherever you routed it):
   `config.server`, grouped by `config.tool_sections`, with each tool's call
   count linking back to the calls index.
 
+## Abandoned calls
+
+A row is inserted `running` when a request starts and updated when it finishes.
+If that update never lands — the container restarts mid-call for a deploy, or
+the log write itself fails — nothing retries it. Left alone, the row would claim
+to be running for the whole retention window, so an operator asking "what is the
+agent doing right now" gets a permanent false positive.
+
+`McpLogs::Call.sweep_abandoned!` settles those rows: anything still `running`
+past `config.abandoned_after_hours` becomes `status: "error"` with
+`error_type: "abandoned"` and an `error_message` saying no completion was ever
+recorded. `completed_at` and `duration_ms` stay `nil` — the sweep knows the call
+did not finish, not when it stopped.
+
+It runs as part of `McpLogs::PurgeJob` and `rake mcp_logs:purge` below, so
+scheduling either one covers both. Set `abandoned_after_hours` above your
+slowest tool call: until the sweep runs, a long call and a dead one are
+genuinely indistinguishable — the recorder cannot tell them apart, and neither
+can the page.
+
 ## Retention
 
 Logged calls accumulate; nothing prunes them automatically. Two ways to run
-`McpLogs::Call.purge!(McpLogs.retention_days)` on a schedule:
+`McpLogs::Call.purge!(McpLogs.retention_days)` and
+`McpLogs::Call.sweep_abandoned!` on a schedule:
 
 ```ruby
 McpLogs::PurgeJob.perform_later
