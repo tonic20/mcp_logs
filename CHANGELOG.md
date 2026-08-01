@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.1.0] — 2026-08-01
 
 - Initial release: MCP request logging and tool documentation.
 - Retention: `McpLogs::PurgeJob` and `rake mcp_logs:purge`.

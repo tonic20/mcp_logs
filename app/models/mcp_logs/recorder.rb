@@ -102,7 +102,19 @@ module McpLogs
         body, response_truncated = Payload.prepare(result_payload(response))
         error_message, error_message_truncated = capped_error_message(exception)
 
-        record.update!(
+        # update_columns, not update!: this writes every column named below
+        # unconditionally, where update! sends only the ones ActiveRecord considers
+        # dirty relative to the object `start` built. That difference matters for
+        # exactly one case, and it is not hypothetical. If the sweep settled this
+        # row as abandoned while the handler was still running, the row now carries
+        # an error_type and error_message this in-memory object has never seen —
+        # and since both are nil in memory AND nil in the assignment below, dirty
+        # tracking omits them, leaving a completed call permanently labelled
+        # abandoned. Validations go with them: these values are constructed rather
+        # than user input, and a validation failure would only be swallowed by
+        # `guarded` anyway.
+        record.update_columns(
+          updated_at: Time.current,
           tool_name: capped(data[:tool_name]),
           arguments: arguments,
           arguments_truncated: arguments_truncated,

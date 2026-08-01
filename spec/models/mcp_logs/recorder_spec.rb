@@ -221,13 +221,13 @@ RSpec.describe McpLogs::Recorder do
   end
 
   it "never lets a failure while finishing break the call" do
-    allow_any_instance_of(McpLogs::Call).to receive(:update!).and_raise(ActiveRecord::StatementInvalid, "gone")
+    allow_any_instance_of(McpLogs::Call).to receive(:update_columns).and_raise(ActiveRecord::StatementInvalid, "gone")
     expect(Rails.error).to receive(:report).at_least(:once)
 
     expect(record({ method: "tools/call" }) { { ok: true } }).to eq(ok: true)
   end
 
-  # The two specs above stub create!/update! directly, so no statement ever
+  # The two specs above stub create!/update_columns directly, so no statement ever
   # reaches PostgreSQL and no transaction is ever poisoned — they pin control
   # flow only. These provoke a real database error (division by zero, which
   # PostgreSQL rejects at the statement level) to prove the actual failure
@@ -243,10 +243,33 @@ RSpec.describe McpLogs::Recorder do
   end
 
   it "keeps the enclosing transaction usable after a real database error while finishing" do
-    allow_any_instance_of(McpLogs::Call).to receive(:update!) { McpLogs::Call.connection.execute("SELECT 1/0") }
+    allow_any_instance_of(McpLogs::Call).to receive(:update_columns) { McpLogs::Call.connection.execute("SELECT 1/0") }
     expect(Rails.error).to receive(:report).at_least(:once)
 
     expect(record({ method: "tools/call" }) { { ok: true } }).to eq(ok: true)
     expect { McpLogs::Call.count }.not_to raise_error
+  end
+
+  # The sweep and a slow handler race by construction: the sweep exists precisely
+  # for calls that outlive the bound, and a call that outlives it can still
+  # return. Finishing therefore has to overwrite what the sweep wrote, which it
+  # only does because it writes those columns unconditionally — under dirty
+  # tracking, error_type and error_message are nil in memory and nil in the
+  # assignment, so a call that succeeded would keep the sweep's abandoned verdict
+  # forever, next to a real duration.
+  it "clears an abandoned verdict when a swept call finishes after all" do
+    result = record({ method: "tools/call" }) do
+      McpLogs::Call.sole.update_columns(started_at: 2.days.ago)
+      expect(McpLogs::Call.sweep_abandoned!(1)).to eq(1)
+      expect(McpLogs::Call.sole.error_type).to eq("abandoned")
+      { ok: true }
+    end
+
+    expect(result).to eq(ok: true)
+    call = McpLogs::Call.sole
+    expect(call.status).to eq("ok")
+    expect(call.error_type).to be_nil
+    expect(call.error_message).to be_nil
+    expect(call.completed_at).to be_present
   end
 end
