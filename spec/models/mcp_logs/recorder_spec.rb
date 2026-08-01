@@ -69,15 +69,19 @@ RSpec.describe McpLogs::Recorder do
     expect(call.error_message).to eq("ArgumentError: bad news")
   end
 
+  # Multibyte, because the cap is a byteslice: cutting mid-character would leave
+  # invalid UTF-8 in the column, so the result is <= the cap rather than == it.
+  # Payload's copy of this logic is covered the same way in payload_spec.
   it "caps an oversized error message and flags error_message_truncated" do
     data = { method: "tools/call" }
 
     expect {
-      record(data) { raise "x" * 5_000 }
+      record(data) { raise "é" * 5_000 }
     }.to raise_error(RuntimeError)
 
     call = McpLogs::Call.sole
-    expect(call.error_message.bytesize).to eq(McpLogs::Recorder::ERROR_MESSAGE_BYTES)
+    expect(call.error_message).to be_valid_encoding
+    expect(call.error_message.bytesize).to be <= McpLogs::Recorder::ERROR_MESSAGE_BYTES
     expect(call.error_message_truncated).to be(true)
     expect(call.arguments_truncated).to be(false)
     expect(call.response_truncated).to be(false)
@@ -122,6 +126,20 @@ RSpec.describe McpLogs::Recorder do
     end
 
     expect(McpLogs::Call.sole.tool_name).to eq("search_apps")
+  end
+
+  # error_type is `data[:error] || exception.class.name`. Every other spec that
+  # raises also sets data[:error], so the fallback — the unexpected raise the
+  # gem never classified, which is the whole reason the second half of that
+  # expression exists — went uncovered.
+  it "falls back to the exception's class when the server classified nothing" do
+    expect {
+      record({ method: "tools/call" }) { raise ArgumentError, "bad news" }
+    }.to raise_error(ArgumentError)
+
+    call = McpLogs::Call.sole
+    expect(call.status).to eq("error")
+    expect(call.error_type).to eq("ArgumentError")
   end
 
   it "records an error the server reported without raising" do

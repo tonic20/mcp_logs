@@ -81,6 +81,20 @@ it's handed and trusts it describes the request in progress. Memoizing or
 sharing a server across requests will silently cross-contaminate logged tool
 names, arguments and errors between them.
 
+### Two things `mcp` 1.0.0 does not let this gem see
+
+`notifications/cancelled` returns before `instrument_call` runs, so a cancelled
+request is never handed to `around_request` and records no row at all.
+
+Every notification the server does not handle records `rpc_method` as the
+literal `"unsupported_method"` rather than the method the client actually sent —
+the gem passes that string in place of the real one. So an `unsupported_method`
+row means "some notification this server has no handler for", not a client
+calling a method by that name.
+
+Neither is something the recorder can correct for; both are noted here so a row
+that looks wrong can be recognised as upstream behaviour.
+
 ### Client identity
 
 `client_name` and `client_version` come from the `clientInfo` a client sends with
@@ -143,7 +157,12 @@ end
   wrapper, and the corresponding `*_truncated` column is set.
 - **`payload_filter`** — a lambda run on every payload after Rails'
   `filter_parameters`, before the size cap. Use it for redaction
-  `filter_parameters` doesn't already cover.
+  `filter_parameters` doesn't already cover. It is also the way to stop storing
+  a payload you don't want kept — return `nil` and the column stays empty. The
+  usual candidate is the `tools/list` result: it is your entire contract,
+  byte-identical on every client reconnect, so it produces the largest rows in
+  the table carrying the least information. The lambda sees only the payload, so
+  match on its shape: `->(payload) { payload.key?("tools") ? nil : payload }`.
 - **`retention_days`** — how far back `McpLogs::Call.purge!`,
   `McpLogs::PurgeJob` and `rake mcp_logs:purge` reach when called with no
   explicit argument. Default 30.

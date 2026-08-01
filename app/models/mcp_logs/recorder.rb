@@ -174,7 +174,18 @@ module McpLogs
     def guarded
       Call.transaction(requires_new: true) { yield }
     rescue StandardError => exception
-      Rails.error.report(exception, handled: true, source: "mcp_logs")
+      # The report is itself guarded. Anything escaping this method reaches
+      # MCP::Instrumentation#instrument_call, which reports and re-raises, so a
+      # failing error reporter would turn an already-committed tool write into a
+      # -32603 for the client — which an agent will retry, duplicating the
+      # write. ErrorReporter#report already swallows subscriber failures when a
+      # logger is present, so this is near-unreachable; it is also the only line
+      # in the recorder that was outside the guarantee the rest of it makes.
+      begin
+        Rails.error.report(exception, handled: true, source: "mcp_logs")
+      rescue StandardError
+        nil
+      end
       nil
     end
   end
