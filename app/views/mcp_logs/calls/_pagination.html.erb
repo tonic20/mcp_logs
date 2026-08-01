@@ -1,0 +1,18 @@
+<%# Built from the Pagy object's plain readers; pagy's own nav helpers ship their
+    own markup and stylesheet, neither of which fits this layout. %>
+<nav class="mcpl-pagination" aria-label="Pagination">
+  <span class="mcpl-muted">
+    <% if pagy.count.zero? %>
+      Nothing to show
+    <% else %>
+      <%= number_with_delimiter(pagy.from) %>–<%= number_with_delimiter(pagy.to) %>
+      of <%= number_with_delimiter(pagy.count) %>
+    <% end %>
+  </span>
+
+  <span>
+    <%= link_to "‹ Prev", pagy.page_url(:previous) if pagy.previous %>
+    <span class="mcpl-muted">Page <%= pagy.page %> of <%= pagy.last %></span>
+    <%= link_to "Next ›", pagy.page_url(:next) if pagy.next %>
+  </span>
+</nav>

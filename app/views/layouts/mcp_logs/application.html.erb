@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><%= content_for(:title) || "MCP Logs" %></title>
+    <%= stylesheet_link_tag "mcp_logs" %>
+  </head>
+
+  <body class="mcpl">
+    <nav class="mcpl-nav">
+      <div class="mcpl-nav-inner">
+        <strong>MCP Logs</strong>
+        <%= link_to "Calls", mcp_logs.calls_path,
+              "aria-current": ("page" if request.path.start_with?(mcp_logs.calls_path) || request.path == mcp_logs.root_path) %>
+        <%= link_to "Docs", mcp_logs.docs_path,
+              "aria-current": ("page" if request.path == mcp_logs.docs_path) %>
+      </div>
+    </nav>
+
+    <main class="mcpl-main">
+      <%= yield %>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,62 @@
+<% content_for :title, "Calls — MCP Logs" %>
+
+<div class="mcpl-panel">
+  <h2>Filter</h2>
+  <div class="mcpl-panel-body">
+    <%= form_with url: mcp_logs.calls_path, method: :get, class: "mcpl-filters" do |form| %>
+      <div>
+        <%= form.label :method, "Method" %>
+        <%= form.select :method, @methods, { include_blank: "Any" }, selected: params[:method] %>
+      </div>
+      <div>
+        <%= form.label :tool, "Tool" %>
+        <%= form.select :tool, @tools, { include_blank: "Any" }, selected: params[:tool] %>
+      </div>
+      <div>
+        <%= form.label :status, "Status" %>
+        <%= form.select :status, McpLogs::Call::STATUSES, { include_blank: "Any" }, selected: params[:status] %>
+      </div>
+      <div>
+        <%= form.label :session, "Session" %>
+        <%= form.text_field :session, value: params[:session] %>
+      </div>
+      <%= form.submit "Apply" %>
+      <%= link_to "Clear", mcp_logs.calls_path %>
+    <% end %>
+  </div>
+</div>
+
+<div class="mcpl-panel">
+  <h2>Calls</h2>
+
+  <% if @calls.empty? %>
+    <div class="mcpl-panel-body mcpl-muted">No calls recorded yet.</div>
+  <% else %>
+    <table class="mcpl-table">
+      <thead>
+        <tr>
+          <th>Started</th>
+          <th>Method</th>
+          <th>Tool</th>
+          <th>Status</th>
+          <th>Duration</th>
+          <th>Client</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @calls.each do |call| %>
+          <tr>
+            <td><%= link_to l(call.started_at, format: :short), mcp_logs.call_path(call) %></td>
+            <td class="mcpl-mono"><%= call.rpc_method %></td>
+            <td class="mcpl-mono"><%= mcpl_value(call.tool_name) %></td>
+            <td><%= mcpl_status_badge(call) %></td>
+            <td><%= mcpl_duration(call) %></td>
+            <td><%= mcpl_value(call.actor || call.client_name) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+
+  <%= render "pagination", pagy: @pagy %>
+</div>
