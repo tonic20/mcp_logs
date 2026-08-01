@@ -80,20 +80,22 @@ module McpLogs
       elapsed_ms = (clock - started) * 1000
 
       guarded do
-        arguments, arguments_capped = Payload.prepare(data[:tool_arguments])
-        body, body_capped = Payload.prepare(result_payload(response))
-        error_message, error_message_capped = capped_error_message(exception)
+        arguments, arguments_truncated = Payload.prepare(data[:tool_arguments])
+        body, response_truncated = Payload.prepare(result_payload(response))
+        error_message, error_message_truncated = capped_error_message(exception)
 
         record.update!(
           tool_name: data[:tool_name],
           arguments: arguments,
+          arguments_truncated: arguments_truncated,
           response: body,
-          truncated: arguments_capped || body_capped || error_message_capped,
+          response_truncated: response_truncated,
           tool_error: tool_error?(response),
           cancelled: !!data[:cancelled],
           status: (exception || data[:error]) ? "error" : "ok",
           error_type: data[:error]&.to_s || exception&.class&.name,
           error_message: error_message,
+          error_message_truncated: error_message_truncated,
           client_name: client(data)[:name],
           client_version: client(data)[:version],
           duration_ms: elapsed_ms,

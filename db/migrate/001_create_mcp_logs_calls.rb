@@ -21,7 +21,12 @@ class CreateMcpLogsCalls < ActiveRecord::Migration[8.0]
       t.string  :actor
       t.string  :ip
       t.string  :user_agent
-      t.boolean :truncated, null: false, default: false
+      # One flag per capped payload, not a single OR'd column: each of these is
+      # set independently, so the detail page can say which payload was capped
+      # instead of pointing at whichever one happened to render nearby.
+      t.boolean :arguments_truncated, null: false, default: false
+      t.boolean :response_truncated, null: false, default: false
+      t.boolean :error_message_truncated, null: false, default: false
       t.datetime :started_at, null: false
       t.datetime :completed_at
 

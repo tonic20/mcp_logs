@@ -17,6 +17,7 @@ ActiveRecord::Schema[8.1].define(version: 1) do
   create_table "mcp_logs_calls", force: :cascade do |t|
     t.string "actor"
     t.jsonb "arguments"
+    t.boolean "arguments_truncated", default: false, null: false
     t.boolean "cancelled", default: false, null: false
     t.string "client_name"
     t.string "client_version"
@@ -24,10 +25,12 @@ ActiveRecord::Schema[8.1].define(version: 1) do
     t.datetime "created_at", null: false
     t.float "duration_ms"
     t.text "error_message"
+    t.boolean "error_message_truncated", default: false, null: false
     t.string "error_type"
     t.string "ip"
     t.string "protocol_version"
     t.jsonb "response"
+    t.boolean "response_truncated", default: false, null: false
     t.string "rpc_method", null: false
     t.string "server_name"
     t.string "session_id"
@@ -35,7 +38,6 @@ ActiveRecord::Schema[8.1].define(version: 1) do
     t.string "status", default: "running", null: false
     t.boolean "tool_error", default: false, null: false
     t.string "tool_name"
-    t.boolean "truncated", default: false, null: false
     t.datetime "updated_at", null: false
     t.string "user_agent"
     t.index ["rpc_method"], name: "index_mcp_logs_calls_on_rpc_method"

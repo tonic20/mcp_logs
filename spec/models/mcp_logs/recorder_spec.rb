@@ -69,7 +69,7 @@ RSpec.describe McpLogs::Recorder do
     expect(call.error_message).to eq("ArgumentError: bad news")
   end
 
-  it "caps an oversized error message and flags the call as truncated" do
+  it "caps an oversized error message and flags error_message_truncated" do
     data = { method: "tools/call" }
 
     expect {
@@ -78,7 +78,9 @@ RSpec.describe McpLogs::Recorder do
 
     call = McpLogs::Call.sole
     expect(call.error_message.bytesize).to eq(McpLogs::Recorder::ERROR_MESSAGE_BYTES)
-    expect(call.truncated).to be(true)
+    expect(call.error_message_truncated).to be(true)
+    expect(call.arguments_truncated).to be(false)
+    expect(call.response_truncated).to be(false)
   end
 
   it "records an error the server reported without raising" do
@@ -123,11 +125,26 @@ RSpec.describe McpLogs::Recorder do
     expect(call.session_id).to eq("sess-1")
   end
 
-  it "flags a call whose payload was capped" do
+  it "flags response_truncated when the response payload was capped" do
     McpLogs.max_payload_bytes = 100
     record({ method: "tools/call" }) { { "blob" => "x" * 5_000 } }
 
-    expect(McpLogs::Call.sole.truncated).to be(true)
+    call = McpLogs::Call.sole
+    expect(call.response_truncated).to be(true)
+    expect(call.arguments_truncated).to be(false)
+  end
+
+  it "flags arguments_truncated when the arguments payload was capped" do
+    McpLogs.max_payload_bytes = 100
+    data = { method: "tools/call" }
+    record(data) do
+      data[:tool_arguments] = { "blob" => "x" * 5_000 }
+      {}
+    end
+
+    call = McpLogs::Call.sole
+    expect(call.arguments_truncated).to be(true)
+    expect(call.response_truncated).to be(false)
   end
 
   it "records nothing when logging is disabled, and still returns the result" do

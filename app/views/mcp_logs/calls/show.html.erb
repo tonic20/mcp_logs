@@ -74,6 +74,9 @@
   <div class="mcpl-panel">
     <h2>Error</h2>
     <div class="mcpl-panel-body">
+      <% if @call.error_message_truncated %>
+        <p class="mcpl-muted">This message was capped at <%= number_with_delimiter(McpLogs::Recorder::ERROR_MESSAGE_BYTES) %> bytes — what follows is the capped text, not the whole message.</p>
+      <% end %>
       <p class="mcpl-mono"><%= mcpl_value(@call.error_type) %></p>
       <p><%= mcpl_value(@call.error_message) %></p>
     </div>
@@ -83,7 +86,7 @@
 <div class="mcpl-panel">
   <h2>Arguments</h2>
   <div class="mcpl-panel-body">
-    <% if mcpl_capped?(@call.arguments) %>
+    <% if @call.arguments_truncated %>
       <p class="mcpl-muted">This payload was capped at <%= number_with_delimiter(McpLogs.max_payload_bytes) %> bytes — what follows is the capped record, not the whole exchange.</p>
     <% end %>
     <%= mcpl_json(@call.arguments) %>
@@ -93,7 +96,7 @@
 <div class="mcpl-panel">
   <h2>Response</h2>
   <div class="mcpl-panel-body">
-    <% if mcpl_capped?(@call.response) %>
+    <% if @call.response_truncated %>
       <p class="mcpl-muted">This payload was capped at <%= number_with_delimiter(McpLogs.max_payload_bytes) %> bytes — what follows is the capped record, not the whole exchange.</p>
     <% end %>
     <%= mcpl_json(@call.response) %>

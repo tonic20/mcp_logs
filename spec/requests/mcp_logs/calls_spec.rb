@@ -124,10 +124,10 @@ RSpec.describe "McpLogs::Calls", type: :request do
       expect(response.body).to include("kaboom")
     end
 
-    it "flags the arguments panel, not the response panel, when only the arguments were capped" do
+    it "flags the arguments panel, and only the arguments panel, when arguments_truncated is set" do
       call = call!(
-        truncated: true,
         arguments: { "truncated" => true, "bytes" => 90_000, "preview" => "{...}" },
+        arguments_truncated: true,
         response: { "content" => "ok" }
       )
 
@@ -137,17 +137,42 @@ RSpec.describe "McpLogs::Calls", type: :request do
       expect(panel("Response")).not_to include("capped")
     end
 
-    it "flags the response panel, not the arguments panel, when only the response was capped" do
+    it "flags the response panel, and only the response panel, when response_truncated is set" do
       call = call!(
-        truncated: true,
         arguments: { "q" => "pagefly" },
-        response: { "truncated" => true, "bytes" => 90_000, "preview" => "{...}" }
+        response: { "truncated" => true, "bytes" => 90_000, "preview" => "{...}" },
+        response_truncated: true
       )
 
       get "/mcp_logs/calls/#{call.id}"
 
       expect(panel("Response")).to include("capped")
       expect(panel("Arguments")).not_to include("capped")
+    end
+
+    it "flags the error panel, and only the error panel, when error_message_truncated is set" do
+      call = call!(
+        status: "error",
+        error_type: "internal_error",
+        error_message: "RuntimeError: kaboom",
+        error_message_truncated: true,
+        arguments: { "q" => "pagefly" },
+        response: { "content" => "ok" }
+      )
+
+      get "/mcp_logs/calls/#{call.id}"
+
+      expect(panel("Error")).to include("capped")
+      expect(panel("Arguments")).not_to include("capped")
+      expect(panel("Response")).not_to include("capped")
+    end
+
+    it "shows no capped notice anywhere when nothing was truncated" do
+      call = call!(arguments: { "q" => "pagefly" }, response: { "content" => "ok" })
+
+      get "/mcp_logs/calls/#{call.id}"
+
+      expect(response.body).not_to include("capped")
     end
   end
 end
