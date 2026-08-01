@@ -1,0 +1,96 @@
+<% content_for :title, "Call ##{@call.id} — MCP Logs" %>
+
+<p><%= link_to "← Calls", mcp_logs.calls_path %></p>
+
+<div class="mcpl-panel">
+  <h2><%= @call.rpc_method %><%= " · #{@call.tool_name}" if @call.tool_name %></h2>
+  <div class="mcpl-panel-body">
+    <dl class="mcpl-meta">
+      <div>
+        <dt>Status</dt>
+        <dd><%= mcpl_status_badge(@call) %></dd>
+      </div>
+      <div>
+        <dt>Started</dt>
+        <dd><%= l(@call.started_at, format: :short) %></dd>
+      </div>
+      <div>
+        <dt>Duration</dt>
+        <dd><%= mcpl_duration(@call) %></dd>
+      </div>
+      <div>
+        <dt>Tool</dt>
+        <dd>
+          <% if @call.tool_name %>
+            <%= link_to @call.tool_name, mcp_logs.calls_path(tool: @call.tool_name) %>
+          <% else %>
+            <span class="mcpl-muted">—</span>
+          <% end %>
+        </dd>
+      </div>
+      <div>
+        <dt>Session</dt>
+        <dd>
+          <% if @call.session_id %>
+            <%= link_to @call.session_id, mcp_logs.calls_path(session: @call.session_id) %>
+          <% else %>
+            <span class="mcpl-muted">—</span>
+          <% end %>
+        </dd>
+      </div>
+      <div>
+        <dt>Actor</dt>
+        <dd><%= mcpl_value(@call.actor) %></dd>
+      </div>
+      <div>
+        <dt>Client</dt>
+        <dd><%= mcpl_value([@call.client_name, @call.client_version].compact.join(" ")) %></dd>
+      </div>
+      <div>
+        <dt>Protocol</dt>
+        <dd><%= mcpl_value(@call.protocol_version) %></dd>
+      </div>
+      <div>
+        <dt>Server</dt>
+        <dd><%= mcpl_value(@call.server_name) %></dd>
+      </div>
+      <div>
+        <dt>IP</dt>
+        <dd><%= mcpl_value(@call.ip) %></dd>
+      </div>
+      <div>
+        <dt>User agent</dt>
+        <dd><%= mcpl_value(@call.user_agent) %></dd>
+      </div>
+      <div>
+        <dt>Cancelled</dt>
+        <dd><%= @call.cancelled ? "yes" : "no" %></dd>
+      </div>
+    </dl>
+  </div>
+</div>
+
+<% if @call.status == "error" || @call.error_message.present? %>
+  <div class="mcpl-panel">
+    <h2>Error</h2>
+    <div class="mcpl-panel-body">
+      <p class="mcpl-mono"><%= mcpl_value(@call.error_type) %></p>
+      <p><%= mcpl_value(@call.error_message) %></p>
+    </div>
+  </div>
+<% end %>
+
+<div class="mcpl-panel">
+  <h2>Arguments</h2>
+  <div class="mcpl-panel-body"><%= mcpl_json(@call.arguments) %></div>
+</div>
+
+<div class="mcpl-panel">
+  <h2>Response</h2>
+  <div class="mcpl-panel-body">
+    <% if @call.truncated %>
+      <p class="mcpl-muted">A payload on this call was capped at <%= number_with_delimiter(McpLogs.max_payload_bytes) %> bytes — what follows is the capped record, not the whole exchange.</p>
+    <% end %>
+    <%= mcpl_json(@call.response) %>
+  </div>
+</div>
