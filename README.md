@@ -272,3 +272,7 @@ mcp_logs_purge:
   a pipeline at all, the pages render unstyled.
 - The `mcp` gem, supplied by the host — `mcp_logs` only depends on `rails`
   and `pagy`
+
+## Author
+
+Built by [Anton Kopylov](https://www.kopylov.net). The story behind it: [McpLogs: Seeing What the Agent Actually Called](https://www.kopylov.net/blog/mcplogs-seeing-what-the-agent-actually-called.html).
