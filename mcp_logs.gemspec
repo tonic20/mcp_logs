@@ -7,12 +7,12 @@ Gem::Specification.new do |spec|
   spec.summary     = "Rails engine for MCP request logging and tool documentation"
   spec.description = "Mountable Rails engine that records every Model Context Protocol " \
                      "request a Rails app serves and renders its tool contract as documentation."
-  spec.homepage    = "https://github.com/tonic20/mcp_logs"
+  spec.homepage    = "https://www.kopylov.net/blog/mcplogs-seeing-what-the-agent-actually-called.html"
   spec.license     = "MIT"
 
   spec.metadata["homepage_uri"]    = spec.homepage
-  spec.metadata["source_code_uri"] = spec.homepage
-  spec.metadata["changelog_uri"]   = "#{spec.homepage}/blob/main/CHANGELOG.md"
+  spec.metadata["source_code_uri"] = "https://github.com/tonic20/mcp_logs"
+  spec.metadata["changelog_uri"]   = "https://github.com/tonic20/mcp_logs/blob/main/CHANGELOG.md"
 
   spec.required_ruby_version = ">= 3.3"
 
